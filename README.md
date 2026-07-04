@@ -43,6 +43,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 # Optional for local/private MVP. Add this later if you want server-only writes.
 SUPABASE_SERVICE_ROLE_KEY=
 MUSIC_PROVIDER=mock
+HOST_PASSWORD=change-this-host-password
 ```
 
 4. Run the database migration in Supabase SQL editor:
@@ -135,14 +136,13 @@ https://your-project.vercel.app/api/spotify/callback
 ## MVP Notes
 
 - Guest accounts are intentionally not implemented.
-- Admin auth is intentionally not implemented yet; use this only for a private barn network or protected Vercel preview.
+- Host controls at `/admin` require `HOST_PASSWORD`. Add the same environment variable in Vercel before using the dashboard there.
 - Public MVP write policies allow guests and the host screen to update the shared queue with the publishable key. Add admin auth before using this outside a private setting.
 - Lyrics stay outside the app; use Spotify's lyrics view when needed.
 - Supabase Realtime replaces a custom WebSocket server for the Vercel architecture.
 
 ## TODO
 
-- Add simple admin passcode protection.
 - Add one-tap "play next" behavior.
 - Add local Supabase CLI setup instructions.
 - Add Playwright smoke tests for join, search, request, and admin playback.

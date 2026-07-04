@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { spendGuestCredits } from "@/lib/credits";
+import { requireHostAuth } from "@/lib/host-auth";
 import { getMusicProvider } from "@/lib/music";
 import { startRequestPlayback } from "@/lib/playback";
 import { getServiceSupabase } from "@/lib/supabase/server";
@@ -24,8 +25,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       .single();
     if (currentError) throw currentError;
 
+    const currentRequest = current as QueueRequest;
+    const isHostAction = input.status !== "skipped" || !input.guestId;
+    if (isHostAction) {
+      const unauthorized = await requireHostAuth();
+      if (unauthorized) return unauthorized;
+    }
+
     if (input.status === "playing") {
-      const request = await startRequestPlayback(current as QueueRequest);
+      const request = await startRequestPlayback(currentRequest);
       return NextResponse.json({ request });
     }
 
@@ -37,7 +45,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
       await supabase.from("playback_state").update({ current_request_id: null, is_playing: false }).eq("id", 1);
     }
 
-    if (input.status === "played" || input.status === "removed") {
+    if (input.status === "played" || (input.status === "removed" && currentRequest.status === "playing")) {
       await supabase.from("playback_state").update({ current_request_id: null, is_playing: false }).eq("id", 1);
     }
 

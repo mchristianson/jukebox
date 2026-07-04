@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { requireHostAuth } from "@/lib/host-auth";
 import { getServiceSupabase } from "@/lib/supabase/server";
 
 const reorderSchema = z.object({
@@ -8,6 +9,9 @@ const reorderSchema = z.object({
 
 export async function PATCH(request: Request) {
   try {
+    const unauthorized = await requireHostAuth();
+    if (unauthorized) return unauthorized;
+
     const { orderedIds } = reorderSchema.parse(await request.json());
     const supabase = getServiceSupabase();
 
