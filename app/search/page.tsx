@@ -1,0 +1,96 @@
+"use client";
+
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
+import { Coins, Zap } from "lucide-react";
+import { createSongRequest, fetchGuestCredits, searchTracks } from "@/components/api";
+import { BrandHeader, Button, CreditBadge, Shell, TrackRow } from "@/components/ui";
+import type { Track } from "@/lib/types";
+
+function getGuest() {
+  if (typeof window === "undefined") return null;
+  const raw = localStorage.getItem("barnGuest");
+  return raw ? (JSON.parse(raw) as { id: string; name: string }) : null;
+}
+
+export default function SearchPage() {
+  const router = useRouter();
+  const [query, setQuery] = useState("");
+  const guest = useMemo(getGuest, []);
+  const search = useQuery({
+    queryKey: ["search", query],
+    queryFn: () => searchTracks(query),
+    enabled: query.trim().length > 1
+  });
+  const credits = useQuery({
+    queryKey: ["credits", guest?.id],
+    queryFn: () => fetchGuestCredits(guest!.id),
+    enabled: Boolean(guest)
+  });
+
+  const requestSong = useMutation({
+    mutationFn: ({ track, fastPass }: { track: Track; fastPass: boolean }) => {
+      if (!guest) throw new Error("Join first so we can show your queue position.");
+      return createSongRequest({ guestId: guest.id, guestName: guest.name, trackId: track.id, fastPass });
+    },
+    onSuccess: ({ request }) => router.push(`/request/${request.id}`)
+  });
+
+  const available = credits.data?.credits.available;
+  const canSpend = (cost: number) => credits.data?.credits.isSuperUser || (available ?? 0) >= cost;
+
+  return (
+    <Shell className="mx-auto max-w-2xl">
+      <BrandHeader eyebrow="One shared queue" />
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        {!guest ? (
+          <div className="rounded-2xl bg-barn-400/15 p-4 font-bold text-barn-50">Join first so your name appears on the request.</div>
+        ) : (
+          <CreditBadge credits={credits.data?.credits} />
+        )}
+        {credits.error ? <p className="text-sm font-bold text-red-200">{credits.error.message}</p> : null}
+      </div>
+      <div className="sticky top-0 z-10 -mx-4 border-b border-white/10 bg-night/95 px-4 pb-4 pt-1 backdrop-blur sm:-mx-6 sm:px-6">
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          className="h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-lg font-bold text-white outline-none ring-neon/50 placeholder:text-white/25 focus:ring-4"
+          placeholder="Search Spotify songs"
+        />
+      </div>
+      <div className="mt-5 space-y-3">
+        {query.trim().length < 2 ? (
+          <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center">
+            <p className="text-lg font-black text-white">Search for a crowd-pleaser.</p>
+            <p className="mt-1 text-sm font-semibold text-white/45">Mock tracks appear until Spotify is connected.</p>
+          </div>
+        ) : null}
+        {search.isLoading ? <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/65">Searching...</p> : null}
+        {search.error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{search.error.message}</p> : null}
+        {requestSong.error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{requestSong.error.message}</p> : null}
+        {search.data?.tracks.map((track) => (
+          <TrackRow
+            key={track.id}
+            track={track}
+            action={
+              <div className="grid min-w-[7.5rem] gap-2">
+                <Button className="min-h-10 px-3 py-2 text-sm" disabled={requestSong.isPending || !guest || !canSpend(1)} onClick={() => requestSong.mutate({ track, fastPass: false })}>
+                  <Coins className="mr-1 h-4 w-4" />
+                  Add 1
+                </Button>
+                <Button variant="secondary" className="min-h-10 px-3 py-2 text-sm" disabled={requestSong.isPending || !guest || !canSpend(2)} onClick={() => requestSong.mutate({ track, fastPass: true })}>
+                  <Zap className="mr-1 h-4 w-4" />
+                  Fast 2
+                </Button>
+              </div>
+            }
+          />
+        ))}
+        {search.data && !search.data.tracks.length ? (
+          <p className="rounded-2xl border border-dashed border-white/15 p-6 text-center font-bold text-white/50">No songs found.</p>
+        ) : null}
+      </div>
+    </Shell>
+  );
+}

@@ -1,0 +1,61 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { spendGuestCredits } from "@/lib/credits";
+import { getMusicProvider } from "@/lib/music";
+import { getServiceSupabase } from "@/lib/supabase/server";
+
+const statusSchema = z.object({
+  status: z.enum(["queued", "playing", "played", "skipped", "removed"]),
+  guestId: z.string().uuid().optional()
+});
+
+export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params;
+    const input = statusSchema.parse(await request.json());
+    const supabase = getServiceSupabase();
+
+    const { data: current, error: currentError } = await supabase
+      .from("requests")
+      .select("*")
+      .eq("id", id)
+      .single();
+    if (currentError) throw currentError;
+
+    if (input.status === "playing") {
+      await supabase.from("requests").update({ status: "played" }).eq("status", "playing");
+      if (current.spotify_uri) {
+        await getMusicProvider().playTrack(current.spotify_uri);
+      }
+      await supabase
+        .from("playback_state")
+        .update({ current_request_id: id, is_playing: true, provider: getMusicProvider().name })
+        .eq("id", 1);
+    }
+
+    if (input.status === "skipped") {
+      if (input.guestId) {
+        await spendGuestCredits({ guestId: input.guestId, action: "skip", requestId: id });
+      }
+      await getMusicProvider().skip();
+      await supabase.from("playback_state").update({ current_request_id: null, is_playing: false }).eq("id", 1);
+    }
+
+    if (input.status === "played" || input.status === "removed") {
+      await supabase.from("playback_state").update({ current_request_id: null, is_playing: false }).eq("id", 1);
+    }
+
+    const { data, error } = await supabase
+      .from("requests")
+      .update({ status: input.status })
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    if (error) throw error;
+    return NextResponse.json({ request: data });
+  } catch (error) {
+    console.error("Could not update request status", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Could not update request" }, { status: 400 });
+  }
+}
