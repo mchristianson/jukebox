@@ -52,12 +52,16 @@ export default function QueuePage() {
               <Pill tone="music">Music</Pill>
             </div>
             {data.nowPlaying ? (
-              <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr]">
-                <img src={data.nowPlaying.album_art_url ?? "/record.svg"} alt="" className="h-24 w-24 rounded-2xl object-cover" />
+              <div className="mt-4 grid gap-5 sm:grid-cols-[13rem_1fr] sm:items-center">
+                <img
+                  src={data.nowPlaying.album_art_url ?? "/record.svg"}
+                  alt=""
+                  className="aspect-square w-full rounded-2xl object-cover shadow-[0_18px_42px_rgba(0,0,0,0.38)] sm:w-52"
+                />
                 <div className="min-w-0">
-                  <h2 className="text-2xl font-black text-white">{data.nowPlaying.track_title}</h2>
-                  <p className="font-bold text-white/60">{data.nowPlaying.artist_name}</p>
-                  <p className="mt-2 text-sm font-bold text-white/40">Requested by {data.nowPlaying.guest_name}</p>
+                  <h2 className="text-3xl font-black leading-tight text-white">{data.nowPlaying.track_title}</h2>
+                  <p className="mt-2 text-lg font-bold text-white/65">{data.nowPlaying.artist_name}</p>
+                  <p className="mt-3 text-sm font-bold text-white/45">Requested by {data.nowPlaying.guest_name}</p>
                   {guest ? (
                     <Button
                       variant="danger"

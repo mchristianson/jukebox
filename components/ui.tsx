@@ -109,31 +109,38 @@ export function CreditBadge({ credits, compact = false }: { credits?: GuestCredi
 
 export function TrackRow({ track, action, meta }: { track: Track; action?: React.ReactNode; meta?: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
+    <div className="grid grid-cols-[6rem_1fr] items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.06] p-3 sm:grid-cols-[7rem_1fr_auto]">
       <img
         src={track.album_art_url ?? "/record.svg"}
         alt=""
-        className="h-16 w-16 flex-none rounded-xl object-cover"
+        className="h-24 w-24 rounded-xl object-cover shadow-[0_8px_24px_rgba(0,0,0,0.28)] sm:h-28 sm:w-28"
       />
       <div className="min-w-0 flex-1">
-        <h3 className="truncate text-base font-black text-white">{track.title}</h3>
+        <h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{track.title}</h3>
         <p className="truncate text-sm font-semibold text-white/60">{track.artist_name}</p>
         <p className="mt-1 text-xs font-bold text-white/40">{meta ?? formatDuration(track.duration_ms)}</p>
       </div>
-      {action}
+      {action ? <div className="col-span-2 sm:col-span-1">{action}</div> : null}
     </div>
   );
 }
 
 export function RequestRow({ request, compact = false }: { request: QueueRequest; compact?: boolean }) {
   return (
-    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-sm font-black text-white">
-        {request.queue_number ?? request.position}
+    <div className="grid grid-cols-[5rem_1fr] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3 sm:grid-cols-[5.5rem_1fr]">
+      <div className="relative">
+        <img
+          src={request.album_art_url ?? "/record.svg"}
+          alt=""
+          className="h-20 w-20 rounded-xl object-cover shadow-[0_8px_22px_rgba(0,0,0,0.3)] sm:h-[5.5rem] sm:w-[5.5rem]"
+        />
+        <div className="absolute -left-1 -top-1 flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-night/90 text-xs font-black text-white">
+          {request.queue_number ?? request.position}
+        </div>
       </div>
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <h3 className="truncate text-base font-black text-white">{request.track_title}</h3>
+          <h3 className="line-clamp-2 text-lg font-black leading-tight text-white">{request.track_title}</h3>
           {request.is_fast_pass ? (
             <span className="inline-flex items-center gap-1 rounded-full bg-neon/15 px-2 py-0.5 text-[0.65rem] font-black uppercase tracking-wide text-neon">
               <Zap className="h-3 w-3" />
@@ -145,9 +152,6 @@ export function RequestRow({ request, compact = false }: { request: QueueRequest
           {request.artist_name} requested by {request.guest_name}
         </p>
       </div>
-      {!compact && request.album_art_url ? (
-        <img src={request.album_art_url} alt="" className="h-12 w-12 rounded-xl object-cover" />
-      ) : null}
     </div>
   );
 }
