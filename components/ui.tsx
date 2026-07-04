@@ -107,7 +107,7 @@ export function CreditBadge({ credits, compact = false }: { credits?: GuestCredi
   );
 }
 
-export function TrackRow({ track, action }: { track: Track; action?: React.ReactNode }) {
+export function TrackRow({ track, action, meta }: { track: Track; action?: React.ReactNode; meta?: string }) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.06] p-3">
       <img
@@ -118,7 +118,7 @@ export function TrackRow({ track, action }: { track: Track; action?: React.React
       <div className="min-w-0 flex-1">
         <h3 className="truncate text-base font-black text-white">{track.title}</h3>
         <p className="truncate text-sm font-semibold text-white/60">{track.artist_name}</p>
-        <p className="mt-1 text-xs font-bold text-white/40">{formatDuration(track.duration_ms)}</p>
+        <p className="mt-1 text-xs font-bold text-white/40">{meta ?? formatDuration(track.duration_ms)}</p>
       </div>
       {action}
     </div>

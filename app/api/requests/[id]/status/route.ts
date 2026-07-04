@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { spendGuestCredits } from "@/lib/credits";
 import { getMusicProvider } from "@/lib/music";
+import { startRequestPlayback } from "@/lib/playback";
 import { getServiceSupabase } from "@/lib/supabase/server";
+import type { QueueRequest } from "@/lib/types";
 
 const statusSchema = z.object({
   status: z.enum(["queued", "playing", "played", "skipped", "removed"]),
@@ -23,14 +25,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     if (currentError) throw currentError;
 
     if (input.status === "playing") {
-      await supabase.from("requests").update({ status: "played" }).eq("status", "playing");
-      if (current.spotify_uri) {
-        await getMusicProvider().playTrack(current.spotify_uri);
-      }
-      await supabase
-        .from("playback_state")
-        .update({ current_request_id: id, is_playing: true, provider: getMusicProvider().name })
-        .eq("id", 1);
+      const request = await startRequestPlayback(current as QueueRequest);
+      return NextResponse.json({ request });
     }
 
     if (input.status === "skipped") {

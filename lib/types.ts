@@ -64,6 +64,11 @@ export type GuestCredits = {
   creditDate: string;
 };
 
+export type GuestPlayedTrack = Track & {
+  playCount: number;
+  lastPlayedAt: string;
+};
+
 export type CreateRequestInput = {
   guestId: string;
   guestName: string;

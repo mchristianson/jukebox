@@ -1,4 +1,4 @@
-import type { AppSettings, GuestCredits, QueueRequest, QueueSnapshot, RequestStatus, Track } from "@/lib/types";
+import type { AppSettings, GuestCredits, GuestPlayedTrack, QueueRequest, QueueSnapshot, RequestStatus, Track } from "@/lib/types";
 
 async function readJson<T>(response: Response): Promise<T> {
   const json = await response.json();
@@ -28,6 +28,10 @@ export async function fetchGuestCredits(guestId: string) {
   return readJson<{ credits: GuestCredits }>(await fetch(`/api/guests/${guestId}/credits`, { cache: "no-store" }));
 }
 
+export async function fetchGuestPlayedTracks(guestId: string) {
+  return readJson<{ tracks: GuestPlayedTrack[] }>(await fetch(`/api/guests/${guestId}/plays`, { cache: "no-store" }));
+}
+
 export async function createSongRequest(input: {
   guestId: string;
   guestName: string;
@@ -50,6 +54,12 @@ export async function updateRequestStatus(id: string, status: RequestStatus, gue
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status, guestId })
     })
+  );
+}
+
+export async function advancePlayback() {
+  return readJson<{ advanced: boolean; request?: QueueRequest | null; reason?: string }>(
+    await fetch("/api/playback/advance", { method: "POST" })
   );
 }
 
