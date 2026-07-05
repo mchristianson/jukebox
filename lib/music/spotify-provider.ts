@@ -116,15 +116,17 @@ export const spotifyProvider: MusicProvider = {
       spotify_uri: track.uri
     }));
   },
-  async playTrack(uri: string) {
+  async playTrack(uri: string, options) {
     if (uri.includes("mock-")) {
       throw new Error("This queued song came from the mock catalog and cannot be played by Spotify. Search for the song again while Spotify mode is enabled.");
     }
 
     const params = new URLSearchParams({ device_id: await getPlaybackDeviceId() });
+    const uris = [uri, ...(options?.upcomingUris ?? [])].filter((item, index, all) => item && all.indexOf(item) === index);
+
     await spotifyFetch<void>(`/me/player/play?${params.toString()}`, {
       method: "PUT",
-      body: JSON.stringify({ uris: [uri] })
+      body: JSON.stringify({ uris })
     });
   },
   async pause() {

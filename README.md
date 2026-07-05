@@ -114,6 +114,8 @@ http://localhost:3000/api/spotify/login
 ```bash
 SPOTIFY_REFRESH_TOKEN=...
 MUSIC_PROVIDER=spotify
+# Optional. Starts the next queued track this many milliseconds before the current duration ends.
+PLAYBACK_OVERLAP_MS=1500
 ```
 
 7. Restart the dev server again.

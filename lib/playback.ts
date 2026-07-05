@@ -3,6 +3,36 @@ import { getActiveSessionId } from "@/lib/session";
 import { getServiceSupabase } from "@/lib/supabase/server";
 import type { QueueRequest } from "@/lib/types";
 
+const DEFAULT_PLAYBACK_OVERLAP_MS = 1500;
+
+function getPlaybackOverlapMs() {
+  const configured = Number(process.env.PLAYBACK_OVERLAP_MS);
+  return Number.isFinite(configured) && configured >= 0 ? configured : DEFAULT_PLAYBACK_OVERLAP_MS;
+}
+
+function isPlayableSpotifyUri(uri: string | null) {
+  return Boolean(uri && !uri.includes("mock-"));
+}
+
+async function getUpcomingSpotifyUris(request: QueueRequest) {
+  const supabase = getServiceSupabase();
+  const { data, error } = await supabase
+    .from("requests")
+    .select("id, spotify_uri")
+    .eq("session_id", request.session_id)
+    .eq("status", "queued")
+    .order("is_fast_pass", { ascending: false })
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(24);
+
+  if (error) throw error;
+
+  return (data ?? [])
+    .filter((item) => item.id !== request.id && isPlayableSpotifyUri(item.spotify_uri))
+    .map((item) => item.spotify_uri as string);
+}
+
 export async function startRequestPlayback(request: QueueRequest) {
   const supabase = getServiceSupabase();
   const provider = getMusicProvider();
@@ -10,7 +40,7 @@ export async function startRequestPlayback(request: QueueRequest) {
   await supabase.from("requests").update({ status: "played" }).eq("status", "playing");
 
   if (request.spotify_uri) {
-    await provider.playTrack(request.spotify_uri);
+    await provider.playTrack(request.spotify_uri, { upcomingUris: await getUpcomingSpotifyUris(request) });
   }
 
   await supabase
@@ -105,13 +135,24 @@ export async function advancePlaybackIfFinished() {
 
   const currentRequest = current as QueueRequest;
   const elapsedMs = Date.now() - new Date(currentRequest.updated_at).getTime();
-  const completionBufferMs = 2500;
+  const overlapMs = getPlaybackOverlapMs();
 
-  if (elapsedMs < currentRequest.duration_ms + completionBufferMs) {
+  if (elapsedMs < Math.max(0, currentRequest.duration_ms - overlapMs)) {
     return { advanced: false, reason: "playing" };
   }
 
-  await supabase.from("requests").update({ status: "played" }).eq("id", currentRequest.id);
+  const { data: markedCurrent, error: markCurrentError } = await supabase
+    .from("requests")
+    .update({ status: "played" })
+    .eq("id", currentRequest.id)
+    .eq("status", "playing")
+    .select("id")
+    .maybeSingle();
+
+  if (markCurrentError) throw markCurrentError;
+  if (!markedCurrent) {
+    return { advanced: false, reason: "already-advanced" };
+  }
 
   let request: QueueRequest | null;
   try {

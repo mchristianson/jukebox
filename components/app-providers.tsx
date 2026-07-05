@@ -25,7 +25,7 @@ function PlaybackAdvancer() {
       }
     };
 
-    const interval = window.setInterval(checkPlayback, 5000);
+    const interval = window.setInterval(checkPlayback, 1000);
     void checkPlayback();
 
     return () => window.clearInterval(interval);
