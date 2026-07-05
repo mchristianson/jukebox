@@ -16,12 +16,15 @@ function getGuest() {
 export default function SearchPage() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [toast, setToast] = useState("");
   const guest = useMemo(getGuest, []);
   const search = useQuery({
-    queryKey: ["search", query],
-    queryFn: () => searchTracks(query),
-    enabled: query.trim().length > 1
+    queryKey: ["search", debouncedQuery],
+    queryFn: () => searchTracks(debouncedQuery),
+    enabled: debouncedQuery.trim().length > 1,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000
   });
   const credits = useQuery({
     queryKey: ["credits", guest?.id],
@@ -52,6 +55,12 @@ export default function SearchPage() {
     const timeout = window.setTimeout(() => setToast(""), 3000);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    const normalizedQuery = query.trim();
+    const timeout = window.setTimeout(() => setDebouncedQuery(normalizedQuery), 350);
+    return () => window.clearTimeout(timeout);
+  }, [query]);
 
   const available = credits.data?.credits.available;
   const canSpend = (cost: number) => credits.data?.credits.isSuperUser || (available ?? 0) >= cost;
@@ -132,6 +141,9 @@ export default function SearchPage() {
             )}
             {playedTracks.error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{playedTracks.error.message}</p> : null}
           </>
+        ) : null}
+        {query.trim().length > 1 && query.trim() !== debouncedQuery ? (
+          <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/65">Searching...</p>
         ) : null}
         {search.isLoading ? <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/65">Searching...</p> : null}
         {search.error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{search.error.message}</p> : null}

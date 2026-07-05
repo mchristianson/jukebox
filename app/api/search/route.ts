@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getMusicProvider } from "@/lib/music";
+import { getRateLimitRetryAfterSeconds } from "@/lib/music/errors";
 import { getServiceSupabase } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -17,6 +18,13 @@ export async function GET(request: Request) {
     }
     return NextResponse.json({ tracks, provider: provider.name });
   } catch (error) {
+    const retryAfterSeconds = getRateLimitRetryAfterSeconds(error);
+    if (retryAfterSeconds) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Spotify is rate limited.", retryAfterSeconds },
+        { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+      );
+    }
     return NextResponse.json({ error: error instanceof Error ? error.message : "Search failed" }, { status: 500 });
   }
 }

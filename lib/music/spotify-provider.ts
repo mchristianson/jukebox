@@ -1,4 +1,5 @@
 import type { Track } from "@/lib/types";
+import { MusicRateLimitError } from "./errors";
 import type { MusicProvider } from "./types";
 
 type SpotifyTokenResponse = {
@@ -14,6 +15,34 @@ type SpotifyDevice = {
 };
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
+let spotifyCooldownUntil = 0;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryAfterSeconds(response: Response, fallbackSeconds: number) {
+  const retryAfter = Number(response.headers.get("Retry-After"));
+  return Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : fallbackSeconds;
+}
+
+async function waitForSpotifyCooldown() {
+  const waitMs = spotifyCooldownUntil - Date.now();
+  if (waitMs > 0) {
+    await sleep(waitMs);
+  }
+}
+
+async function handleSpotifyRateLimit(response: Response, attempt: number, maxAttempts: number) {
+  const retryAfterSeconds = getRetryAfterSeconds(response, Math.min(2 ** attempt, 30));
+  spotifyCooldownUntil = Math.max(spotifyCooldownUntil, Date.now() + retryAfterSeconds * 1000);
+
+  if (attempt >= maxAttempts) {
+    throw new MusicRateLimitError(`Spotify rate limit hit. Try again in ${retryAfterSeconds} seconds.`, retryAfterSeconds);
+  }
+
+  await waitForSpotifyCooldown();
+}
 
 async function getSpotifyAccessToken() {
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
@@ -33,17 +62,26 @@ async function getSpotifyAccessToken() {
     refresh_token: refreshToken
   });
 
-  const response = await fetch("https://accounts.spotify.com/api/token", {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body
-  });
+  await waitForSpotifyCooldown();
 
-  if (!response.ok) {
-    throw new Error(`Spotify token refresh failed: ${response.status}`);
+  const maxAttempts = 2;
+  let response: Response | null = null;
+  for (let attempt = 0; attempt <= maxAttempts; attempt += 1) {
+    response = await fetch("https://accounts.spotify.com/api/token", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body
+    });
+
+    if (response.status !== 429) break;
+    await handleSpotifyRateLimit(response, attempt, maxAttempts);
+  }
+
+  if (!response?.ok) {
+    throw new Error(`Spotify token refresh failed: ${response?.status ?? "unknown"}`);
   }
 
   const json = (await response.json()) as SpotifyTokenResponse;
@@ -53,19 +91,27 @@ async function getSpotifyAccessToken() {
 
 async function spotifyFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const token = await getSpotifyAccessToken();
-  const response = await fetch(`https://api.spotify.com/v1${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      ...init?.headers
-    }
-  });
+  const maxAttempts = 3;
+  let response: Response | null = null;
+  for (let attempt = 0; attempt <= maxAttempts; attempt += 1) {
+    await waitForSpotifyCooldown();
+    response = await fetch(`https://api.spotify.com/v1${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        ...init?.headers
+      }
+    });
 
-  if (response.status === 204) return undefined as T;
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Spotify API failed: ${response.status}${body ? ` ${body}` : ""}`);
+    if (response.status !== 429) break;
+    await handleSpotifyRateLimit(response, attempt, maxAttempts);
+  }
+
+  if (response?.status === 204) return undefined as T;
+  if (!response?.ok) {
+    const body = await response?.text();
+    throw new Error(`Spotify API failed: ${response?.status ?? "unknown"}${body ? ` ${body}` : ""}`);
   }
   return response.json() as Promise<T>;
 }
@@ -74,6 +120,7 @@ function spotifySearchPath(query: string) {
   const params = new URLSearchParams();
   params.set("q", query.trim());
   params.set("type", "track");
+  params.set("limit", "12");
   return `/search?${params.toString()}`;
 }
 
@@ -106,7 +153,7 @@ export const spotifyProvider: MusicProvider = {
       };
     }>(spotifySearchPath(query));
 
-    return data.tracks.items.slice(0, 12).map<Track>((track) => ({
+    return data.tracks.items.map<Track>((track) => ({
       id: `spotify-${track.id}`,
       provider: "spotify",
       title: track.name,

@@ -1,8 +1,21 @@
 import type { AppSettings, GuestCredits, GuestPlayedTrack, QueueRequest, QueueSnapshot, RequestStatus, Track } from "@/lib/types";
 
+export class ApiError extends Error {
+  retryAfterSeconds: number | null;
+
+  constructor(message: string, retryAfterSeconds: number | null = null) {
+    super(message);
+    this.name = "ApiError";
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const json = await response.json();
-  if (!response.ok) throw new Error(json.error ?? "Request failed");
+  if (!response.ok) {
+    const retryAfter = Number(response.headers.get("Retry-After") ?? json.retryAfterSeconds);
+    throw new ApiError(json.error ?? "Request failed", Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null);
+  }
   return json as T;
 }
 

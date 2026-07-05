@@ -2,7 +2,9 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { advancePlayback } from "@/components/api";
+import { ApiError, advancePlayback } from "@/components/api";
+
+const HOST_ADVANCE_CHECK_INTERVAL_MS = 15_000;
 
 export function HostPlaybackController() {
   const queryClient = useQueryClient();
@@ -20,14 +22,15 @@ export function HostPlaybackController() {
           void queryClient.invalidateQueries({ queryKey: ["played-tracks"] });
         }
       } catch (error) {
-        nextCheckAt = Date.now() + 15_000;
+        const retryAfterMs = error instanceof ApiError && error.retryAfterSeconds ? error.retryAfterSeconds * 1000 : HOST_ADVANCE_CHECK_INTERVAL_MS;
+        nextCheckAt = Date.now() + retryAfterMs;
         console.error("Could not check host playback advancement", error);
       } finally {
         isChecking = false;
       }
     };
 
-    const interval = window.setInterval(checkPlayback, 1000);
+    const interval = window.setInterval(checkPlayback, HOST_ADVANCE_CHECK_INTERVAL_MS);
     void checkPlayback();
 
     return () => window.clearInterval(interval);
