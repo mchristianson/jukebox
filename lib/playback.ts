@@ -3,7 +3,7 @@ import { getActiveSessionId } from "@/lib/session";
 import { getServiceSupabase } from "@/lib/supabase/server";
 import type { QueueRequest } from "@/lib/types";
 
-const DEFAULT_PLAYBACK_OVERLAP_MS = 1500;
+const DEFAULT_PLAYBACK_OVERLAP_MS = 3000;
 
 function getPlaybackOverlapMs() {
   const configured = Number(process.env.PLAYBACK_OVERLAP_MS);
