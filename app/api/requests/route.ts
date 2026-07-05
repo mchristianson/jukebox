@@ -3,10 +3,8 @@ import { z } from "zod";
 import { getQueueSnapshot, nextQueuePosition } from "@/lib/queue";
 import { assertGuestCanSpend, CREDIT_COSTS, spendGuestCredits } from "@/lib/credits";
 import { mockTracks } from "@/lib/music/mock-provider";
-import { autoStartIfIdle } from "@/lib/playback";
 import { getActiveSessionId } from "@/lib/session";
 import { getServiceSupabase } from "@/lib/supabase/server";
-import type { QueueRequest } from "@/lib/types";
 
 const requestSchema = z.object({
   guestId: z.string().uuid(),
@@ -87,8 +85,7 @@ export async function POST(request: Request) {
       throw creditError;
     }
 
-    const createdRequest = await autoStartIfIdle(data as QueueRequest);
-    return NextResponse.json({ request: createdRequest });
+    return NextResponse.json({ request: data });
   } catch (error) {
     console.error("Could not request song", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Could not request song" }, { status: 400 });

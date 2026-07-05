@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, Lock, LogOut, Play, SkipForward, Trash2, Unlock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { reorderQueue, updateRequestStatus, updateSettings } from "@/components/api";
+import { HostPlaybackController } from "@/components/host-playback-controller";
 import { BrandHeader, Button, Pill, RequestRow, Shell } from "@/components/ui";
 import { useQueue } from "@/components/use-queue";
 import type { QueueRequest } from "@/lib/types";
@@ -38,6 +39,7 @@ export function AdminDashboard() {
 
   return (
     <Shell className="mx-auto max-w-6xl">
+      <HostPlaybackController />
       <div className="flex items-start justify-between gap-4">
         <BrandHeader eyebrow="Host controls" />
         <Button variant="secondary" className="min-h-10 px-3 py-2" disabled={logoutMutation.isPending} onClick={() => logoutMutation.mutate()}>

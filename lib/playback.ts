@@ -59,25 +59,6 @@ export async function startRequestPlayback(request: QueueRequest) {
   return data as QueueRequest;
 }
 
-export async function autoStartIfIdle(request: QueueRequest) {
-  const supabase = getServiceSupabase();
-  const { data: playback, error } = await supabase
-    .from("playback_state")
-    .select("current_request_id, is_playing")
-    .eq("id", 1)
-    .single();
-
-  if (error) throw error;
-  if (playback.is_playing || playback.current_request_id) return request;
-
-  try {
-    return await startRequestPlayback(request);
-  } catch (error) {
-    console.error("Could not auto-start request playback", error);
-    return request;
-  }
-}
-
 async function getNextQueuedRequest(sessionId: string) {
   const supabase = getServiceSupabase();
   const { data, error } = await supabase
