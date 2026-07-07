@@ -1,10 +1,11 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Coins, History, ListMusic, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { CheckCircle2, History } from "lucide-react";
 import { createSongRequest, fetchGuestCredits, fetchGuestPlayedTracks, searchTracks } from "@/components/api";
-import { BrandHeader, Button, CreditBadge, LinkButton, Shell, TrackRow } from "@/components/ui";
+import { BottomNav, BrandHeader, CreditBadge, Shell } from "@/components/ui";
+import { SongModal } from "@/components/song-modal";
 import type { Track } from "@/lib/types";
 
 function getGuest() {
@@ -13,15 +14,50 @@ function getGuest() {
   return raw ? (JSON.parse(raw) as { id: string; name: string }) : null;
 }
 
+function SongCard({ track, onClick }: { track: Track; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group w-full text-left"
+    >
+      <div className="overflow-hidden rounded-2xl border-2 border-night-400/40 bg-card shadow-sm transition-all duration-150 group-active:scale-95 group-active:border-barn-700/60">
+        <img
+          src={track.album_art_url ?? "/record.svg"}
+          alt=""
+          className="aspect-square w-full object-cover"
+        />
+      </div>
+      <div className="mt-2 px-0.5">
+        <p
+          className="line-clamp-1 font-semibold text-barn-400 leading-tight"
+          style={{ fontFamily: "var(--font-oswald, sans-serif)", fontSize: "1.2rem" }}
+        >
+          {track.title}
+        </p>
+        <p
+          className="mt-0.5 line-clamp-1 text-cream/45"
+          style={{ fontFamily: "var(--font-oswald, sans-serif)", fontSize: "1rem" }}
+        >
+          {track.artist_name}
+        </p>
+      </div>
+    </button>
+  );
+}
+
 export default function SearchPage() {
   const queryClient = useQueryClient();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [toast, setToast] = useState("");
-  const guest = useMemo(getGuest, []);
+  const [selected, setSelected] = useState<Track | null>(null);
+  const [coinAnim, setCoinAnim] = useState<{ count: number; key: number } | null>(null);
+  const [guest, setGuest] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => setGuest(getGuest()), []);
+
   const search = useQuery({
     queryKey: ["search", debouncedQuery],
-    queryFn: () => searchTracks(debouncedQuery),
+    queryFn: ({ signal }) => searchTracks(debouncedQuery, signal),
     enabled: debouncedQuery.trim().length > 1,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000
@@ -52,124 +88,148 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (!toast) return;
-    const timeout = window.setTimeout(() => setToast(""), 3000);
-    return () => window.clearTimeout(timeout);
+    const t = window.setTimeout(() => setToast(""), 3000);
+    return () => window.clearTimeout(t);
   }, [toast]);
 
   useEffect(() => {
     const normalizedQuery = query.trim();
-    const timeout = window.setTimeout(() => setDebouncedQuery(normalizedQuery), 350);
-    return () => window.clearTimeout(timeout);
+    const t = window.setTimeout(() => setDebouncedQuery(normalizedQuery), 1000);
+    return () => window.clearTimeout(t);
   }, [query]);
 
   const available = credits.data?.credits.available;
   const canSpend = (cost: number) => credits.data?.credits.isSuperUser || (available ?? 0) >= cost;
 
+  const tracks = debouncedQuery.trim().length > 1 ? (search.data?.tracks ?? []) : [];
+  const showHistory = query.trim().length < 2 && guest;
+
   return (
-    <Shell className="mx-auto max-w-2xl">
+    <Shell className="mx-auto max-w-2xl pb-28">
       <BrandHeader eyebrow="One shared queue" />
+
       {toast ? (
-        <div className="fixed left-4 right-4 top-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-neon/25 bg-night/95 p-4 font-black text-white shadow-glow backdrop-blur">
-          <CheckCircle2 className="h-5 w-5 flex-none text-neon" />
+        <div className="fixed left-4 right-4 top-4 z-50 mx-auto flex max-w-md items-center gap-3 rounded-2xl border-2 border-barn-700/40 bg-night-900/95 p-4 font-semibold text-cream shadow-md backdrop-blur-md">
+          <CheckCircle2 className="h-5 w-5 flex-none text-barn-400" />
           <p className="min-w-0 flex-1">{toast}</p>
         </div>
       ) : null}
+
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         {!guest ? (
-          <div className="rounded-2xl bg-barn-400/15 p-4 font-bold text-barn-50">Join first so your name appears on the request.</div>
+          <div className="rounded-2xl border-2 border-night-400/40 bg-card p-4 font-semibold text-cream/70">
+            Join first so your name appears on the request.
+          </div>
         ) : (
           <CreditBadge credits={credits.data?.credits} />
         )}
-        <LinkButton href="/queue" variant="secondary" className="min-h-10 px-4 py-2 text-sm">
-          <ListMusic className="mr-2 h-4 w-4" />
-          View queue
-        </LinkButton>
-        {credits.error ? <p className="text-sm font-bold text-red-200">{credits.error.message}</p> : null}
+        {credits.error ? <p className="text-sm font-semibold text-red-300">{credits.error.message}</p> : null}
       </div>
-      <div className="sticky top-0 z-10 -mx-4 border-b border-white/10 bg-night/95 px-4 pb-4 pt-1 backdrop-blur sm:-mx-6 sm:px-6">
+
+      <div className="sticky top-0 z-10 -mx-4 border-b-2 border-night-400/30 bg-night-800/94 px-4 pb-4 pt-1 backdrop-blur-md sm:-mx-6 sm:px-6">
         <input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          className="h-14 w-full rounded-2xl border border-white/10 bg-black/30 px-4 text-lg font-bold text-white outline-none ring-neon/50 placeholder:text-white/25 focus:ring-4"
-          placeholder="Search Spotify songs"
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={(e) => e.target.select()}
+          className="h-14 w-full rounded-2xl border-2 border-night-400/50 bg-card px-4 text-base font-semibold text-cream outline-none placeholder:text-cream/30 focus:border-barn-500/70 focus:ring-2 focus:ring-barn-500/20"
+          style={{ fontFamily: "var(--font-oswald, sans-serif)" }}
+          placeholder="Search Spotify songs…"
         />
       </div>
-      <div className="mt-5 space-y-3">
-        {query.trim().length < 2 ? (
-          <>
-            {guest ? (
-              <section className="space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-barn-400">Your history</p>
-                    <h2 className="text-2xl font-black text-white">Previous plays</h2>
-                  </div>
-                  <History className="h-5 w-5 text-white/40" />
-                </div>
-                {playedTracks.isLoading ? <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/65">Loading your previous plays...</p> : null}
-                {playedTracks.data?.tracks.map((track) => (
-                    <TrackRow
-                      key={track.id}
-                      track={track}
-                      meta={`${track.playCount} ${track.playCount === 1 ? "play" : "plays"}`}
-                      action={
-                        <div className="grid min-w-[7.5rem] gap-2">
-                          <Button className="min-h-10 px-3 py-2 text-sm" disabled={requestSong.isPending || !guest || !canSpend(1)} onClick={() => requestSong.mutate({ track, fastPass: false })}>
-                            <Coins className="mr-1 h-4 w-4" />
-                            Add 1
-                          </Button>
-                          <Button variant="secondary" className="min-h-10 px-3 py-2 text-sm" disabled={requestSong.isPending || !guest || !canSpend(2)} onClick={() => requestSong.mutate({ track, fastPass: true })}>
-                            <Zap className="mr-1 h-4 w-4" />
-                            Fast 2
-                          </Button>
-                        </div>
-                      }
-                    />
-                  ))}
-                {playedTracks.data && !playedTracks.data.tracks.length ? (
-                  <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center">
-                    <p className="text-lg font-black text-white">No previous plays yet.</p>
-                    <p className="mt-1 text-sm font-semibold text-white/45">Songs will appear here after they finish playing.</p>
-                  </div>
-                ) : null}
-              </section>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center">
-                <p className="text-lg font-black text-white">Search for a crowd-pleaser.</p>
-                <p className="mt-1 text-sm font-semibold text-white/45">Join first to see your previous plays.</p>
+
+      <div className="mt-5">
+        {/* History grid */}
+        {showHistory ? (
+          <section>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-barn-400" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>Your history</p>
+                <h2 className="text-2xl font-bold text-cream" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>Previous plays</h2>
               </div>
-            )}
-            {playedTracks.error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{playedTracks.error.message}</p> : null}
-          </>
+              <History className="h-5 w-5 text-cream/30" />
+            </div>
+            {playedTracks.isLoading ? (
+              <p className="rounded-2xl bg-card p-4 font-semibold text-cream/55">Loading your previous plays...</p>
+            ) : null}
+            {playedTracks.data?.tracks.length ? (
+              <div className="grid grid-cols-2 gap-4">
+                {playedTracks.data.tracks.map((track) => (
+                  <SongCard key={track.id} track={track} onClick={() => setSelected(track)} />
+                ))}
+              </div>
+            ) : null}
+            {playedTracks.data && !playedTracks.data.tracks.length ? (
+              <div className="rounded-2xl border-2 border-dashed border-night-400/40 p-8 text-center">
+                <p className="text-lg font-bold text-cream" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>No previous plays yet.</p>
+                <p className="mt-1 text-sm text-cream/40">Songs will appear here after they finish playing.</p>
+              </div>
+            ) : null}
+            {playedTracks.error ? <p className="mt-2 rounded-2xl bg-red-950/40 p-4 font-semibold text-red-300">{playedTracks.error.message}</p> : null}
+          </section>
         ) : null}
+
+        {/* No guest, no search */}
+        {!showHistory && query.trim().length < 2 ? (
+          <div className="rounded-2xl border-2 border-dashed border-night-400/40 p-8 text-center">
+            <p className="text-lg font-bold text-cream" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>Search for a crowd-pleaser.</p>
+            <p className="mt-1 text-sm text-cream/40">Join first to see your previous plays.</p>
+          </div>
+        ) : null}
+
+        {/* Searching indicator */}
         {query.trim().length > 1 && query.trim() !== debouncedQuery ? (
-          <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/65">Searching...</p>
+          <p className="rounded-2xl bg-card p-4 font-semibold text-cream/55">Searching...</p>
         ) : null}
-        {search.isLoading ? <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/65">Searching...</p> : null}
-        {search.error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{search.error.message}</p> : null}
-        {requestSong.error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{requestSong.error.message}</p> : null}
-        {search.data?.tracks.map((track) => (
-          <TrackRow
-            key={track.id}
-            track={track}
-            action={
-              <div className="grid min-w-[7.5rem] gap-2">
-                <Button className="min-h-10 px-3 py-2 text-sm" disabled={requestSong.isPending || !guest || !canSpend(1)} onClick={() => requestSong.mutate({ track, fastPass: false })}>
-                  <Coins className="mr-1 h-4 w-4" />
-                  Add 1
-                </Button>
-                <Button variant="secondary" className="min-h-10 px-3 py-2 text-sm" disabled={requestSong.isPending || !guest || !canSpend(2)} onClick={() => requestSong.mutate({ track, fastPass: true })}>
-                  <Zap className="mr-1 h-4 w-4" />
-                  Fast 2
-                </Button>
-              </div>
-            }
-          />
-        ))}
+        {search.isLoading ? <p className="rounded-2xl bg-card p-4 font-semibold text-cream/55">Searching...</p> : null}
+        {search.error ? <p className="rounded-2xl bg-red-950/40 p-4 font-semibold text-red-300">{search.error.message}</p> : null}
+        {requestSong.error ? <p className="mt-2 rounded-2xl bg-red-950/40 p-4 font-semibold text-red-300">{requestSong.error.message}</p> : null}
+
+        {/* Search results grid */}
+        {tracks.length > 0 ? (
+          <div className="grid grid-cols-2 gap-4">
+            {tracks.map((track) => (
+              <SongCard key={track.id} track={track} onClick={() => setSelected(track)} />
+            ))}
+          </div>
+        ) : null}
         {search.data && !search.data.tracks.length ? (
-          <p className="rounded-2xl border border-dashed border-white/15 p-6 text-center font-bold text-white/50">No songs found.</p>
+          <p className="rounded-2xl border-2 border-dashed border-night-400/40 p-6 text-center font-semibold text-cream/45">No songs found.</p>
         ) : null}
       </div>
+
+      {/* Song modal */}
+      {selected ? (
+        <SongModal
+          track={selected}
+          onClose={() => setSelected(null)}
+          onAdd={() => { requestSong.mutate({ track: selected, fastPass: false }); setCoinAnim({ count: 1, key: Date.now() }); }}
+          onFastPass={() => { requestSong.mutate({ track: selected, fastPass: true }); setCoinAnim({ count: 2, key: Date.now() }); }}
+          canAdd={Boolean(guest) && canSpend(1)}
+          canFastPass={Boolean(guest) && canSpend(2)}
+          isPending={requestSong.isPending}
+        />
+      ) : null}
+
+      {coinAnim ? (
+        <div key={coinAnim.key} className="pointer-events-none fixed inset-0 z-[100]">
+          {Array.from({ length: coinAnim.count }).map((_, i) => (
+            <img
+              key={i}
+              src="/coin.png"
+              alt=""
+              className="coin-fly absolute bottom-24 left-1/2 h-14 w-14 object-contain"
+              style={{
+                "--coin-x": coinAnim.count === 1 ? "0px" : i === 0 ? "-28px" : "28px",
+                "--coin-spin": i === 0 ? "-15deg" : "15deg",
+                animationDelay: `${i * 80}ms`,
+              } as React.CSSProperties}
+              onAnimationEnd={i === coinAnim.count - 1 ? () => setCoinAnim(null) : undefined}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      <BottomNav active="search" />
     </Shell>
   );
 }

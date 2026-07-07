@@ -46,17 +46,17 @@ export function AdminDashboard() {
           <LogOut className="h-5 w-5" />
         </Button>
       </div>
-      {isLoading ? <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/70">Loading admin dashboard...</p> : null}
-      {error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{error.message}</p> : null}
-      {statusMutation.error ? <p className="mb-4 rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{statusMutation.error.message}</p> : null}
+      {isLoading ? <p className="rounded-xl bg-amber-950/30 p-4 font-semibold text-cream/60">Loading admin dashboard...</p> : null}
+      {error ? <p className="rounded-xl bg-red-900/20 p-4 font-semibold text-red-300">{error.message}</p> : null}
+      {statusMutation.error ? <p className="mb-4 rounded-xl bg-red-900/20 p-4 font-semibold text-red-300">{statusMutation.error.message}</p> : null}
       {data ? (
         <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
           <section className="space-y-4">
-            <div className="rounded-3xl border border-white/10 bg-white/[0.07] p-4">
+            <div className="rounded-2xl border border-amber-900/35 bg-amber-950/30 p-4">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-neon">Playback</p>
-                  <h2 className="text-2xl font-black text-white">Now playing</h2>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-barn-400">Playback</p>
+                  <h2 className="text-2xl font-bold text-cream">Now playing</h2>
                 </div>
                 {data.nowPlaying ? <Pill tone="music">Playing</Pill> : <Pill>Idle</Pill>}
               </div>
@@ -71,20 +71,20 @@ export function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <p className="rounded-2xl border border-dashed border-white/15 p-5 text-center font-bold text-white/50">No active song.</p>
+                <p className="rounded-xl border border-dashed border-amber-900/30 p-5 text-center font-semibold text-cream/45">No active song.</p>
               )}
             </div>
 
             <div>
               <div className="mb-3 flex items-end justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase tracking-[0.2em] text-barn-400">Shared queue</p>
-                  <h2 className="text-2xl font-black text-white">{data.queued.length} waiting in one line</h2>
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-barn-400">Shared queue</p>
+                  <h2 className="text-2xl font-bold text-cream">{data.queued.length} waiting in one line</h2>
                 </div>
               </div>
               <div className="space-y-3">
                 {data.queued.map((request, index) => (
-                  <div key={request.id} className="grid gap-2 rounded-3xl border border-white/10 bg-white/[0.055] p-3 xl:grid-cols-[1fr_auto]">
+                  <div key={request.id} className="grid gap-2 rounded-xl border border-amber-900/30 bg-amber-950/25 p-3 xl:grid-cols-[1fr_auto]">
                     <RequestRow request={request} />
                     <div className="flex flex-wrap gap-2 xl:justify-end">
                       <Button variant="secondary" disabled={busy || index === 0} onClick={() => move(request.id, -1)}><ArrowUp className="h-5 w-5" /></Button>
@@ -98,15 +98,15 @@ export function AdminDashboard() {
                   </div>
                 ))}
                 {!data.queued.length ? (
-                  <p className="rounded-2xl border border-dashed border-white/15 p-8 text-center font-bold text-white/50">The request line is empty.</p>
+                  <p className="rounded-xl border border-dashed border-amber-900/30 p-8 text-center font-semibold text-cream/45">The request line is empty.</p>
                 ) : null}
               </div>
             </div>
           </section>
 
           <aside className="space-y-4">
-            <section className="rounded-3xl border border-white/10 bg-white/[0.07] p-4">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-neon">Barn switches</p>
+            <section className="rounded-2xl border border-amber-900/35 bg-amber-950/30 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-barn-400">Barn switches</p>
               <div className="mt-4 grid gap-3">
                 <Button
                   variant={data.settings.requests_locked ? "danger" : "secondary"}
@@ -122,11 +122,11 @@ export function AdminDashboard() {
               </div>
             </section>
 
-            <section className="rounded-3xl border border-white/10 bg-white/[0.07] p-4">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-barn-400">Queue count</p>
-              <div className="mt-4 rounded-2xl bg-black/20 p-3">
-                <p className="text-2xl font-black text-neon">{data.queued.length}</p>
-                <p className="text-sm font-bold text-white/55">songs waiting</p>
+            <section className="rounded-2xl border border-amber-900/35 bg-amber-950/30 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-barn-400">Queue count</p>
+              <div className="mt-4 rounded-xl bg-black/20 p-3">
+                <p className="text-2xl font-bold text-barn-400">{data.queued.length}</p>
+                <p className="text-sm font-semibold text-cream/50">songs waiting</p>
               </div>
             </section>
           </aside>

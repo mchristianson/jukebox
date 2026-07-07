@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Coins, Music, Search, SkipForward } from "lucide-react";
+import { SkipForward } from "lucide-react";
 import { fetchGuestCredits, updateRequestStatus } from "@/components/api";
-import { BrandHeader, Button, CreditBadge, LinkButton, Pill, RequestRow, Shell } from "@/components/ui";
+import { BottomNav, BrandHeader, Button, CreditBadge, NowPlayingCard, Pill, RequestRow, Shell } from "@/components/ui";
 import { useQueue } from "@/components/use-queue";
 
 function getGuest() {
@@ -16,7 +16,8 @@ function getGuest() {
 export default function QueuePage() {
   const { data, isLoading, error } = useQueue();
   const queryClient = useQueryClient();
-  const guest = useMemo(getGuest, []);
+  const [guest, setGuest] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => setGuest(getGuest()), []);
   const credits = useQuery({
     queryKey: ["credits", guest?.id],
     queryFn: () => fetchGuestCredits(guest!.id),
@@ -42,77 +43,53 @@ export default function QueuePage() {
       <div className="mb-4 flex justify-end">
         <CreditBadge credits={credits.data?.credits} />
       </div>
-      {isLoading ? <p className="rounded-2xl bg-white/10 p-4 font-bold text-white/70">Loading the barn queue...</p> : null}
-      {error ? <p className="rounded-2xl bg-red-500/15 p-4 font-bold text-red-200">{error.message}</p> : null}
+      {isLoading ? <p className="rounded-2xl bg-card p-4 font-semibold text-cream/60">Loading the barn queue...</p> : null}
+      {error ? <p className="rounded-2xl bg-red-950/40 p-4 font-semibold text-red-300">{error.message}</p> : null}
       {data ? (
         <div className="space-y-5">
-          <section className="rounded-3xl border border-white/10 bg-white/[0.07] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-neon">Now playing</p>
-              <Pill tone="music">Music</Pill>
-            </div>
-            {data.nowPlaying ? (
-              <div className="mt-4 grid gap-5 sm:grid-cols-[13rem_1fr] sm:items-center">
-                <img
-                  src={data.nowPlaying.album_art_url ?? "/record.svg"}
-                  alt=""
-                  className="aspect-square w-full rounded-2xl object-cover shadow-[0_18px_42px_rgba(0,0,0,0.38)] sm:w-52"
-                />
-                <div className="min-w-0">
-                  <h2 className="text-3xl font-black leading-tight text-white">{data.nowPlaying.track_title}</h2>
-                  <p className="mt-2 text-lg font-bold text-white/65">{data.nowPlaying.artist_name}</p>
-                  <p className="mt-3 text-sm font-bold text-white/45">Requested by {data.nowPlaying.guest_name}</p>
-                  {guest ? (
-                    <Button
-                      variant="danger"
-                      className="mt-4 min-h-10 px-4 py-2 text-sm"
-                      disabled={skipMutation.isPending || !canSkip}
-                      onClick={() => skipMutation.mutate(data.nowPlaying!.id)}
-                    >
-                      <SkipForward className="mr-2 h-4 w-4" />
-                      Skip
-                      <Coins className="ml-2 mr-1 h-4 w-4" />
-                      2
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-5 rounded-2xl bg-black/20 p-5 text-center">
-                <Music className="mx-auto mb-2 h-8 w-8 text-white/35" />
-                <p className="font-bold text-white/60">Nothing playing yet.</p>
-              </div>
-            )}
-          </section>
+          <NowPlayingCard nowPlaying={data.nowPlaying}>
+            {guest && data.nowPlaying ? (
+              <Button
+                variant="secondary"
+                className="min-h-10 border-barn-700/60 bg-barn-900 px-4 py-2 text-sm text-cream hover:bg-barn-800"
+                disabled={skipMutation.isPending || !canSkip}
+                onClick={() => skipMutation.mutate(data.nowPlaying!.id)}
+              >
+                <SkipForward className="mr-2 h-4 w-4" />
+                Skip
+                <span className="relative ml-2 inline-flex h-6 w-7 flex-none" aria-hidden="true">
+                  <img src="/coin.png" alt="" className="absolute bottom-0 left-0 h-5 w-5 object-contain drop-shadow" />
+                  <img src="/coin.png" alt="" className="absolute bottom-1.5 left-1.5 h-5 w-5 object-contain drop-shadow" />
+                </span>
+                2
+              </Button>
+            ) : null}
+          </NowPlayingCard>
 
           <section>
             <div className="mb-3 flex items-end justify-between gap-3">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-barn-400">One shared line</p>
-                <h2 className="text-2xl font-black text-white">{data.queued.length} up next</h2>
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-barn-400" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>One shared line</p>
+                <h2 className="text-2xl font-bold text-cream" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>{data.queued.length} up next</h2>
               </div>
               {data.settings.requests_locked ? <Pill>Locked</Pill> : null}
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {data.queued.length ? data.queued.map((request) => <RequestRow request={request} key={request.id} />) : (
-                <div className="rounded-2xl border border-dashed border-white/15 p-8 text-center">
-                  <p className="text-lg font-black text-white">The shared queue is wide open.</p>
-                  <p className="mt-1 text-sm font-semibold text-white/45">Add songs to the live queue.</p>
+                <div className="rounded-2xl border-2 border-dashed border-night-400/40 p-8 text-center">
+                  <p className="text-lg font-bold text-cream" style={{ fontFamily: "var(--font-oswald, sans-serif)" }}>The shared queue is wide open.</p>
+                  <p className="mt-1 text-sm text-cream/40">Add songs to the live queue.</p>
                 </div>
               )}
             </div>
           </section>
+
+          {skipMutation.error ? (
+            <p className="rounded-2xl bg-red-950/40 p-3 text-sm font-semibold text-red-300">{skipMutation.error.message}</p>
+          ) : null}
         </div>
       ) : null}
-      <div className="fixed inset-x-0 bottom-0 border-t border-white/10 bg-night/90 p-4 backdrop-blur">
-        {skipMutation.error ? <p className="mx-auto mb-3 max-w-2xl rounded-2xl bg-red-500/15 p-3 text-sm font-bold text-red-200">{skipMutation.error.message}</p> : null}
-        <div className="mx-auto flex max-w-2xl flex-wrap items-center gap-3">
-          <LinkButton href="/search" className="flex-1">
-            <Search className="mr-2 h-5 w-5" /> Request song
-          </LinkButton>
-          <LinkButton href="/admin" variant="secondary">Host</LinkButton>
-        </div>
-      </div>
+      <BottomNav active="queue" />
     </Shell>
   );
 }

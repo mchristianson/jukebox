@@ -120,7 +120,8 @@ function spotifySearchPath(query: string) {
   const params = new URLSearchParams();
   params.set("q", query.trim());
   params.set("type", "track");
-  params.set("limit", "12");
+  params.set("limit", "10");
+  params.set("market", process.env.SPOTIFY_MARKET ?? "US");
   return `/search?${params.toString()}`;
 }
 

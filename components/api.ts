@@ -33,8 +33,8 @@ export async function fetchQueue() {
   return readJson<QueueSnapshot>(await fetch("/api/requests", { cache: "no-store" }));
 }
 
-export async function searchTracks(query: string) {
-  return readJson<{ tracks: Track[]; provider: string }>(await fetch(`/api/search?q=${encodeURIComponent(query)}`));
+export async function searchTracks(query: string, signal?: AbortSignal) {
+  return readJson<{ tracks: Track[]; provider: string }>(await fetch(`/api/search?q=${encodeURIComponent(query)}`, { signal }));
 }
 
 export async function fetchGuestCredits(guestId: string) {
