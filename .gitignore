@@ -8,3 +8,4 @@ coverage
 dist
 tsconfig.tsbuildinfo
 supabase/.temp
+/branding.jpg
